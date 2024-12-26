@@ -1,81 +1,64 @@
 package com.example.zomatolite;
 
-import android.annotation.SuppressLint;
-import android.content.Intent;
-import android.os.Bundle;
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
 
-import androidx.activity.EdgeToEdge;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
-import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.TextView;
-import android.widget.Toast;
+public class DatabaseHelper extends SQLiteOpenHelper {
 
-import java.util.List;
-import java.util.Map;
-public class cartpage extends AppCompatActivity {
-    private CartManager cartManager;
-    private TextView cartItemsTextView, totalPriceTextView;
-    private EditText address;
+    // Database Info
+    private static final String DATABASE_NAME = "UserDatabase";
+    private static final int DATABASE_VERSION = 1;
 
+    // Table and Columns
+    private static final String TABLE_USERS = "Users";
+    private static final String COLUMN_PHONE = "Phone";
+    private static final String COLUMN_PASSWORD = "Password";
+
+
+    public DatabaseHelper(Context context) {
+        super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    }
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_cartpage);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
-
-
-        cartManager = CartManager.getInstance();
-
-        cartItemsTextView = findViewById(R.id.cartItemsTextView);
-        totalPriceTextView = findViewById(R.id.totalPriceTextView);
-        Button button = findViewById(R.id.orderButton);
-
-        displayCartItems();
-
-        button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // Create an Intent to navigate to SecondActivity
-                    Intent intent = new Intent(cartpage.this, finalpage.class);
-                    startActivity(intent);
-            }
-        });
+    public void onCreate(SQLiteDatabase db) {
+        // Create the Users table
+        String CREATE_USERS_TABLE = "CREATE TABLE " + TABLE_USERS + "("
+                + COLUMN_PHONE + " TEXT PRIMARY KEY,"
+                + COLUMN_PASSWORD + " TEXT)";
+        db.execSQL(CREATE_USERS_TABLE);
     }
-    @SuppressLint("SetTextI18n")
-    private void displayCartItems() {
-        List<Map<String, Object>> cartItems = cartManager.getCartItems();
-        StringBuilder cartDetails = new StringBuilder();
-        int totalPrice = 0;
 
-        for (Map<String, Object> item : cartItems) {
-            String name = (String) item.get("name");
-            int price = (int) item.get("price");
-            int quantity = (int) item.get("quantity");
+    @Override
+    public void onUpgrade(SQLiteDatabase db , int oldVersion, int newVersion) {
+        // Drop older table if existed
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_USERS);
+        onCreate(db);
+    }
 
-            cartDetails.append(name)
-                    .append(" - ₹")
-                    .append(price)
-                    .append(" x ")
-                    .append(quantity)
-                    .append("\n");
+    public boolean registerUser(String phone, String password) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_PHONE, phone);
+        values.put(COLUMN_PASSWORD, password);
 
-            totalPrice += price * quantity;
-        }
+        // Insert row
+        long result = db.insert(TABLE_USERS, null, values);
+        return result != -1; // Returns true if insert successful
+    }
 
-        cartItemsTextView.setText(cartDetails.toString());
-        totalPriceTextView.setText("Total: ₹" + totalPrice);
+    // Validate user login
+    public boolean checkUser(String phone, String password) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT * FROM " + TABLE_USERS + " WHERE " +
+                COLUMN_PHONE + "=? AND " + COLUMN_PASSWORD + "=?";
+        Cursor cursor = db.rawQuery(query, new String[]{phone, password});
+
+        boolean userExists = cursor.getCount() > 0;
+        cursor.close();
+        return userExists;
     }
 }
-
